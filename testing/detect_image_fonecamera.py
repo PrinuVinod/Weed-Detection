@@ -15,7 +15,7 @@ print("Loading YOLO model...")
 net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
 
 # Specify the full URL including the port number used by the IP Webcam app
-camera_address = 'http://192.168.1.5:2500/video'
+camera_address = 'http://172.20.10.3:2500/video'
 
 # Start capturing video from the phone's camera
 cap = cv2.VideoCapture(camera_address)
