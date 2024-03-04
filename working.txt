@@ -1,0 +1,88 @@
+import cv2
+import numpy as np
+import time
+
+labelsPath = 'obj.names'
+LABELS = open(labelsPath).read().strip().split("\n")
+
+weightsPath = 'crop_weed_detection.weights'
+configPath = 'crop_weed.cfg'
+COLORS = np.random.randint(0, 255, size=(len(LABELS), 3), dtype="uint8")
+print("Loading YOLO model...")
+net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
+
+cap = cv2.VideoCapture(0)
+
+detections = []
+
+while True:
+    ret, frame = cap.read()
+
+    if not ret:
+        print("Error reading from camera.")
+        break
+
+    (H, W) = frame.shape[:2]
+
+    confi = 0.5
+    thresh = 0.5
+
+    ln = net.getLayerNames()
+    ln = [ln[i - 1] for i in net.getUnconnectedOutLayers()]
+
+    blob = cv2.dnn.blobFromImage(frame, 1 / 255.0, (512, 512), swapRB=True, crop=False)
+    net.setInput(blob)
+    start = time.time()
+    layerOutputs = net.forward(ln)
+    end = time.time()
+
+    print("YOLO took {:.6f} seconds".format(end - start))
+
+    boxes = []
+    confidences = []
+    classIDs = []
+
+    for output in layerOutputs:
+        for detection in output:
+            scores = detection[5:]
+            classID = np.argmax(scores)
+            confidence = scores[classID]
+
+            if confidence > confi:
+                box = detection[0:4] * np.array([W, H, W, H])
+                (centerX, centerY, width, height) = box.astype("int")
+                x = int(centerX - (width / 2))
+                y = int(centerY - (height / 2))
+
+                boxes.append([x, y, int(width), int(height)])
+                confidences.append(float(confidence))
+                classIDs.append(classID)
+
+    idxs = cv2.dnn.NMSBoxes(boxes, confidences, confi, thresh)
+    print("Detections done\n")
+
+    if len(idxs) > 0:
+        for i in idxs.flatten():
+            x, y, w, h = boxes[i]
+
+            detection_info = {
+                "x": x,
+                "y": y,
+                "width": w,
+                "height": h,
+                "label": LABELS[classIDs[i]]
+            }
+
+            detections.append(detection_info)
+
+            print("[OUTPUT]   : detected label -> ", LABELS[classIDs[i]])
+
+    print("Detection Results:", detections)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+print("[STATUS]   : Completed")
+print("[END]")

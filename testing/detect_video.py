@@ -22,7 +22,7 @@ ln = [ln[i - 1] for i in net.getUnconnectedOutLayers()]
 # if you want to use webcam insted of video uncomment below line and comment line 24 
 # cap = cv2.VideoCapture(0)
 
-cap = cv2.VideoCapture("videos/2.mp4")
+cap = cv2.VideoCapture("videos/3.mp4")
 
 while True:
 	ret,image = cap.read()

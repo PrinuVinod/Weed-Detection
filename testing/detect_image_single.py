@@ -15,7 +15,7 @@ print("Loading Images from disk...")
 net = cv2.dnn.readNetFromDarknet(configPath, weightsPath)
 
 # load our input image and grab its spatial dimensions
-image = cv2.imread('images/crop_1.jpeg')
+image = cv2.imread('images/1.jpeg')
 (H, W) = image.shape[:2]
 
 # parameters
