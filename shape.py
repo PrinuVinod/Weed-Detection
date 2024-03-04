@@ -34,7 +34,7 @@ while True:
                 x_normalized = int((x / frame.shape[1]) * 10)
                 y_normalized = int((y / frame.shape[0]) * 10)
 
-                print(f'Red Circle ({x_normalized}, {y_normalized})') 
+                print(f'Detected: ({x_normalized}, {y_normalized})') 
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
