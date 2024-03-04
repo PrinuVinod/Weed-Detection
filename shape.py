@@ -3,6 +3,8 @@ import numpy as np
 
 cap = cv2.VideoCapture(0)
 
+detected_circles = []
+
 while True:
     ret, frame = cap.read()
 
@@ -34,7 +36,9 @@ while True:
                 x_normalized = int((x / frame.shape[1]) * 10)
                 y_normalized = int((y / frame.shape[0]) * 10)
 
-                print(f'Detected: ({x_normalized}, {y_normalized})') 
+                if (x_normalized, y_normalized) not in detected_circles:
+                    detected_circles.append((x_normalized, y_normalized))
+                    print(f'Detected: ({x_normalized}, {y_normalized})') 
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
