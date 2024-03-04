@@ -53,3 +53,7 @@ In testing folder we have two files use ***detect_image.py*** to detect in image
 - Program detecting weeds and crops in video
 
 ![gif](https://github.com/manideep03/Weed-Detection/blob/main/testing/results/video_detection.gif)
+
+```
+pip install pyserial
+```

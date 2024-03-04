@@ -1,9 +1,15 @@
 import cv2 
 import numpy as np 
+import serial
+import time
+
+ser = serial.Serial('COM5', 9600, timeout=1)
+time.sleep(2)
 
 cap = cv2.VideoCapture(0)
 
 detected_circles = []
+servos_active = False
 
 while True:
     ret, frame = cap.read()
@@ -24,6 +30,10 @@ while True:
     contours, _ = cv2.findContours(
         threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
+    if len(contours) == 0 and servos_active:
+        ser.write("0,0\n".encode())
+        servos_active = False
+
     for contour in contours: 
         approx = cv2.approxPolyDP(contour, 0.01 * cv2.arcLength(contour, True), True) 
 
@@ -38,10 +48,18 @@ while True:
 
                 if (x_normalized, y_normalized) not in detected_circles:
                     detected_circles.append((x_normalized, y_normalized))
-                    print(f'Detected: ({x_normalized}, {y_normalized})') 
+                    print(f'Detected: ({x_normalized}, {y_normalized})')
+
+                    ser.write(f"{x_normalized},{y_normalized}\n".encode())
+                    
+                    if not servos_active:
+                        ser.write("1,1\n".encode())
+                        servos_active = True
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
+
+ser.close()
 
 cap.release()
 cv2.destroyAllWindows()
