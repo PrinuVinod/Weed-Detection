@@ -1,65 +1,80 @@
-import cv2 
-import numpy as np 
+import cv2
+import numpy as np
 import serial
 import time
 
-ser = serial.Serial('COM5', 9600, timeout=1)
-time.sleep(2)
+def main():
+    ser = serial.Serial('COM5', 9600, timeout=1)
+    time.sleep(2)
 
-cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0)
 
-detected_circles = []
-servos_active = False
+    detected_circles = []
+    servos_active = False
 
-while True:
-    ret, frame = cap.read()
+    max_coordinates = 5
+    current_coordinates = 0
 
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    while True:
+        ret, frame = cap.read()
 
-    lower_red = np.array([0, 100, 100])
-    upper_red = np.array([10, 255, 255])
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    mask = cv2.inRange(hsv, lower_red, upper_red)
+        lower_red = np.array([0, 100, 100])
+        upper_red = np.array([10, 255, 255])
 
-    red_circles = cv2.bitwise_and(frame, frame, mask=mask)
+        mask = cv2.inRange(hsv, lower_red, upper_red)
 
-    gray = cv2.cvtColor(red_circles, cv2.COLOR_BGR2GRAY)
+        red_circles = cv2.bitwise_and(frame, frame, mask=mask)
 
-    _, threshold = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+        gray = cv2.cvtColor(red_circles, cv2.COLOR_BGR2GRAY)
 
-    contours, _ = cv2.findContours(
-        threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        _, threshold = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
 
-    if len(contours) == 0 and servos_active:
-        ser.write("0,0\n".encode())
-        servos_active = False
+        contours, _ = cv2.findContours(
+            threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    for contour in contours: 
-        approx = cv2.approxPolyDP(contour, 0.01 * cv2.arcLength(contour, True), True) 
+        if len(contours) == 0 and servos_active:
+            ser.write("0,0\n".encode())
+            servos_active = False
 
-        M = cv2.moments(contour) 
-        if M['m00'] != 0.0: 
-            x = int(M['m10']/M['m00']) 
-            y = int(M['m01']/M['m00']) 
+        for contour in contours:
+            approx = cv2.approxPolyDP(
+                contour, 0.01 * cv2.arcLength(contour, True), True)
 
-            if len(approx) > 6:
-                x_normalized = int((x / frame.shape[1]) * 10)
-                y_normalized = int((y / frame.shape[0]) * 10)
+            M = cv2.moments(contour)
+            if M['m00'] != 0.0:
+                x = int(M['m10']/M['m00'])
+                y = int(M['m01']/M['m00'])
 
-                if (x_normalized, y_normalized) not in detected_circles:
-                    detected_circles.append((x_normalized, y_normalized))
-                    print(f'Detected: ({x_normalized}, {y_normalized})')
+                if len(approx) > 6:
+                    x_normalized = int((x / frame.shape[1]) * 10)
+                    y_normalized = int((y / frame.shape[0]) * 10)
 
-                    ser.write(f"{x_normalized},{y_normalized}\n".encode())
-                    
-                    if not servos_active:
-                        ser.write("1,1\n".encode())
-                        servos_active = True
+                    if (x_normalized, y_normalized) not in detected_circles:
+                        detected_circles.append(
+                            (x_normalized, y_normalized))
+                        print(
+                            f'Detected: ({x_normalized}, {y_normalized})')
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+                        ser.write(
+                            f"{x_normalized},{y_normalized}\n".encode())
 
-ser.close()
+                        if not servos_active:
+                            ser.write("1,1\n".encode())
+                            servos_active = True
 
-cap.release()
-cv2.destroyAllWindows()
+                        current_coordinates += 1
+                        if current_coordinates >= max_coordinates:
+                            return  # Exit the function to restart the script
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    ser.close()
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    while True:
+        main()
