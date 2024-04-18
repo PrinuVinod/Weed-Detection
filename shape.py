@@ -1,45 +1,69 @@
-import cv2
-import numpy as np
-import serial
+import cv2 
+import numpy as np 
 
+# Accessing the camera (0 is usually the default webcam)
 cap = cv2.VideoCapture(0)
 
-if not cap.isOpened():
-    print("Error: Could not open camera.")
-    exit()
-
-arduino = serial.Serial('COM8', 9600)
-
-detected_circles = set()
+# Get the frame dimensions to calculate scaling factors
+frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+scale_x = 10 / frame_width
+scale_y = 10 / frame_height
 
 while True:
+    # Capture frame-by-frame
     ret, frame = cap.read()
+    
+    # converting frame into grayscale image 
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 
 
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    # setting threshold of gray image 
+    _, threshold = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY) 
 
-    lower_red = np.array([0, 100, 100])
-    upper_red = np.array([10, 255, 255])
+    # using a findContours() function 
+    contours, _ = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
 
-    mask = cv2.inRange(hsv, lower_red, upper_red)
+    # loop through all contours
+    for contour in contours: 
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # calculate the area of the contour
+        area = cv2.contourArea(contour)
 
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        # filter contours based on area
+        if area > 100: # adjust the threshold based on your image and requirements
 
-    circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, dp=1, minDist=20, param1=50, param2=30, minRadius=5, maxRadius=50)
+            # calculate the perimeter of the contour
+            perimeter = cv2.arcLength(contour, True)
 
-    if circles is not None:
-        scaled_circles = np.round(circles[0, :]).astype("int")
-        scaled_circles[:, :2] = np.clip(np.round(scaled_circles[:, :2] / 640 * 10), 0, 10)
+            # approximate the contour to detect shape
+            approx = cv2.approxPolyDP(contour, 0.04 * perimeter, True)
 
-        for (x, y, r) in scaled_circles:
-            if (x, y) not in detected_circles:
-                detected_circles.add((x, y))
-                print(f"Detected circle at ({x}, {y})")
-                arduino.write(f"{x},{y}\n".encode())
+            # filter contours to detect red circles
+            if len(approx) > 8: # adjust the number of sides for circles
+                # calculate center and radius of the circle
+                ((x, y), radius) = cv2.minEnclosingCircle(contour)
+                center = (int(x), int(y))
+                radius = int(radius)
+
+                # filter circles based on color
+                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                lower_red = np.array([0, 100, 100])
+                upper_red = np.array([10, 255, 255])
+                mask = cv2.inRange(hsv, lower_red, upper_red)
+
+                # calculate the number of non-zero pixels in the mask
+                total_pixels = cv2.countNonZero(mask)
+                if total_pixels > 0.5 * perimeter: # adjust threshold based on your image and requirements
+                    # Map coordinates to 0-10 scale
+                    scaled_x = int(x * scale_x)
+                    scaled_y = int(y * scale_y)
+                    
+                    # Output scaled coordinates
+                    print(f"Detected circle at ({scaled_x}, {scaled_y})")
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
+# When everything done, release the capture
 cap.release()
 cv2.destroyAllWindows()
